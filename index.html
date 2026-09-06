@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Laboratorium Fisika Impian - Putri Intan Kania Nosa</title>
+  <meta name="description" content="Eksplorasi Web 3D Interaktif Desain Laboratorium Fisika Impian karya Putri Intan Kania Nosa (NIM 2407015). Menampilkan 21 fasilitas terintegrasi, simulasi K3, dan tur virtual.">
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Three.js Local Fallback with CDN redundancy -->
+  <script src="libs/three.min.js"></script>
+  <script src="libs/OrbitControls.js"></script>
+</head>
+<body>
+
+  <!-- 3D WebGL Canvas Container -->
+  <div id="canvas-container"></div>
+  
+  <!-- Overlay for 3D Floating Pin Badges -->
+  <div id="pins-overlay"></div>
+
+  <!-- FPS Crosshair -->
+  <div id="crosshair"></div>
+
+  <!-- Emergency Flash Red Overlay -->
+  <div id="alarm-overlay" class="alarm-overlay"></div>
+
+  <!-- ==================== TOP HUD HEADER ==================== -->
+  <header class="hud-header">
+    <div class="brand-card">
+      <div class="brand-icon">⚛</div>
+      <div class="brand-text">
+        <h1>Laboratorium Fisika Impian</h1>
+        <div class="brand-badge">
+          <span>Desain Arsitektur oleh</span>
+          <span class="author-tag">Putri Intan Kania Nosa</span>
+          <span class="nim-tag">NIM 2407015</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- Light Mode Switcher -->
+      <button id="btn-lighting" class="hud-btn" title="Ganti Mode Pencahayaan Ruangan">
+        <span class="btn-icon">☀️</span>
+        <span id="lighting-text">Mode Siang</span>
+      </button>
+
+      <!-- Smart Board Simulator Switcher -->
+      <button id="btn-smartboard" class="hud-btn" title="Ganti Tayangan Layar Cerdas PhET">
+        <span class="btn-icon">🖥️</span>
+        <span>PhET Simulasi</span>
+      </button>
+
+      <!-- Emergency Cut-Off Switch Button -->
+      <button id="btn-emergency" class="hud-btn danger" title="Simulasi Saklar Pemutus Sentral K3">
+        <span class="btn-icon">⚡</span>
+        <span id="emergency-text">Saklar K3: AKTIF</span>
+      </button>
+
+      <!-- Sound FX Toggle -->
+      <button id="btn-sound" class="hud-btn" title="Audio Ambience Lab Fisika">
+        <span class="btn-icon" id="sound-icon">🔊</span>
+      </button>
+
+      <!-- Concept Info Modal -->
+      <button id="btn-info-modal" class="hud-btn" title="Dokumen Lengkap & Prinsip Desain">
+        <span class="btn-icon">📋</span>
+        <span>Konsep Desain</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== LEFT HUD PANEL: MINIMAP & TOGGLES ==================== -->
+  <aside class="hud-side-left">
+    <!-- Minimap 2D Radar -->
+    <div class="minimap-container">
+      <div class="minimap-header">
+        <span>Denah Radar</span>
+        <span id="pos-coords" style="font-size: 9.5px; color: #38bdf8;">(0, 0)</span>
+      </div>
+      <canvas id="minimap-canvas" width="160" height="110"></canvas>
+    </div>
+
+    <!-- Quick Tool Toggles -->
+    <div class="quick-action-card">
+      <div class="card-title">Tampilan 3D</div>
+      <button id="btn-toggle-pins" class="action-row-btn active">
+        <span>Pin Nomor (1-21)</span>
+        <span class="toggle-status">ON</span>
+      </button>
+      <button id="btn-toggle-roof" class="action-row-btn">
+        <span>Plafon / Atap</span>
+        <span class="toggle-status">OFF</span>
+      </button>
+      <button id="btn-auto-rotate" class="action-row-btn">
+        <span>Rotasi Sinematik</span>
+        <span class="toggle-status">OFF</span>
+      </button>
+      <button id="btn-reset-view" class="action-row-btn">
+        <span>Reset Sudut Kamera</span>
+        <span>↺</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ==================== BOTTOM HUD: VIEW PRESETS & NAVIGATION ==================== -->
+  <footer class="hud-bottom">
+    <!-- Camera Preset Quick Buttons (Directly mapping the original document views) -->
+    <nav class="view-presets-bar">
+      <button class="preset-chip active" data-preset="overview">🌐 Prespektif Bebas</button>
+      <button class="preset-chip" data-preset="top">📐 Denah Atas (2D)</button>
+      <button class="preset-chip" data-preset="front">👨‍🏫 Panggung Guru</button>
+      <button class="preset-chip" data-preset="students">🔬 Meja Siswa</button>
+      <button class="preset-chip" data-preset="k3">🚨 Ruang K3 & Medis</button>
+      <button class="preset-chip" data-preset="cabinets">🗄️ Lemari Penyimpanan</button>
+      <button class="preset-chip" data-preset="research">🔭 Area Riset Mandiri</button>
+      <button class="preset-chip" data-preset="collab">👥 Area Kolaborasi</button>
+    </nav>
+
+    <div class="bottom-indicators">
+      <!-- Navigation Mode Switch (Orbit vs First Person Walk) -->
+      <div class="navigation-mode-switch">
+        <button id="nav-mode-orbit" class="nav-toggle-btn active">
+          <span>🔄</span> Mode Orbit 360°
+        </button>
+        <button id="nav-mode-fps" class="nav-toggle-btn">
+          <span>🚶</span> Mode Jelajah (FPS)
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== SIDE DRAWER: POI DETAIL ==================== -->
+  <div id="poi-drawer" class="poi-drawer">
+    <div class="drawer-header">
+      <div>
+        <span id="poi-category" class="drawer-badge">Akses & Sirkulasi</span>
+        <h2 id="poi-title" class="drawer-title">Pintu Masuk Utama</h2>
+      </div>
+      <button id="btn-close-drawer" class="close-btn" title="Tutup Detail">✕</button>
+    </div>
+
+    <div class="drawer-section">
+      <div class="section-label">Deskripsi Fungsi</div>
+      <p id="poi-desc" class="drawer-desc">Pintu ganda utama sebagai akses mobilitas siswa dan guru...</p>
+    </div>
+
+    <div class="drawer-section">
+      <div class="section-label">Fitur & Spesifikasi Teknis</div>
+      <ul id="poi-features" class="feature-list">
+        <li>Pintu ganda swing dengan push-plate stainless steel</li>
+      </ul>
+    </div>
+
+    <div class="drawer-section">
+      <div class="section-label">Standar Keselamatan & Regulasi</div>
+      <div id="poi-standard" class="standard-card">
+        Permendiknas No. 24 Th 2007
+      </div>
+    </div>
+
+    <button id="btn-focus-poi" class="drawer-focus-btn">
+      <span>🎯</span> Fokuskan Kamera Lebih Dekat
+    </button>
+  </div>
+
+  <!-- ==================== FPS WALKTHROUGH GUIDE OVERLAY ==================== -->
+  <div id="fps-guide" class="fps-guide-overlay">
+    <div style="font-size: 32px; margin-bottom: 10px;">🚶</div>
+    <h3 style="font-family: var(--font-display); font-size: 18px; margin-bottom: 8px;">Mode Jelajah Ruangan (FPS)</h3>
+    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px;">
+      Anda sedang masuk langsung ke dalam laboratorium fisika. Gunakan keyboard dan mouse untuk berjalan dan melihat sekeliling:
+    </p>
+
+    <div class="fps-keys-grid">
+      <div></div>
+      <div class="key-cap">W</div>
+      <div></div>
+      <div class="key-cap">A</div>
+      <div class="key-cap">S</div>
+      <div class="key-cap">D</div>
+    </div>
+
+    <p style="font-size: 12px; color: #38bdf8; margin-bottom: 20px;">
+      Gunakan <strong>Mouse</strong> untuk memutar pandangan.<br>
+      Tekan <strong>ESC</strong> untuk keluar kembali ke mode orbit.
+    </p>
+
+    <button id="btn-start-fps" class="hud-btn active" style="margin: 0 auto; padding: 10px 24px;">
+      Mulai Berkeliling
+    </button>
+  </div>
+
+  <!-- ==================== DOCUMENT & CONCEPT MODAL ==================== -->
+  <div id="info-modal" class="info-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-family: var(--font-display); font-size: 20px; color: #ffffff;">Desain Laboratorium Fisika Impian</h2>
+          <p style="font-size: 13px; color: #38bdf8; margin-top: 2px;">Putri Intan Kania Nosa — NIM 2407015</p>
+        </div>
+        <button id="btn-close-modal" class="close-btn">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div style="background: rgba(56, 189, 248, 0.08); border-left: 4px solid #0284c7; padding: 14px 18px; border-radius: 0 10px 10px 0;">
+          <h3 style="font-size: 15px; color: #bae6fd; margin-bottom: 6px;">Konsep Dasar Perancangan</h3>
+          <p style="font-size: 13px; color: #e2e8f0; line-height: 1.6;">
+            Laboratorium ini dirancang bukan hanya sebagai ruang pelaksanaan praktikum biasa, melainkan sebagai <strong>pusat pembelajaran fisika yang terintegrasi, aman, fleksibel, dan berpusat pada peserta didik (student-centered)</strong>. Ruang mampu mengakomodasi praktikum mekanika, listrik magnet, optika gelombang, hingga proyek riset mandiri dan pemodelan digital PhET.
+          </p>
+        </div>
+
+        <div>
+          <h3 style="font-size: 15px; color: #ffffff; margin-bottom: 12px;">6 Prinsip Utama Desain</h3>
+          <div class="principles-grid">
+            <div class="principle-box">
+              <h4>1. Fungsional</h4>
+              <p>Setiap zona memiliki batasan fungsi yang jelas (demonstrasi, praktikum, riset mandiri, kolaborasi, dan penyimpanan).</p>
+            </div>
+            <div class="principle-box">
+              <h4>2. Aman (Safety First)</h4>
+              <p>Ruang khusus K3 tersendiri, tombol pemutus darurat, APAR CO2, safety shower & eyewash, serta sirkulasi evakuasi lapang.</p>
+            </div>
+            <div class="principle-box">
+              <h4>3. Fleksibel</h4>
+              <p>Meja praktikum modular heksagonal dapat disusun untuk kerja individu, kelompok ber-4, atau seminar kelas.</p>
+            </div>
+            <div class="principle-box">
+              <h4>4. Efisien & Teratur</h4>
+              <p>Lemari alat terklasifikasi tegas ke dalam 4 bidang utama fisika dengan kode label dan pencahayaan interior.</p>
+            </div>
+            <div class="principle-box">
+              <h4>5. Berpusat pada Siswa</h4>
+              <p>Siswa aktif mengambil data, berdiskusi di meja kolaborasi, dan memverifikasi hukum fisika secara hands-on.</p>
+            </div>
+            <div class="principle-box">
+              <h4>6. Terintegrasi Teknologi</h4>
+              <p>Dukungan stasiun PC simulasi PhET, sensor data logger digital, dan layar interaktif smart board.</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 style="font-size: 15px; color: #ffffff; margin-bottom: 10px;">Daftar 21 Fasilitas Laboratorium</h3>
+          <div style="font-size: 12.5px; color: #cbd5e1; line-height: 1.7; column-count: 2; column-gap: 24px;">
+            <p>1. Pintu masuk utama laboratorium</p>
+            <p>2. Pintu darurat / akses evakuasi keluar</p>
+            <p>3. Area demonstrasi konsep & eksperimen guru</p>
+            <p>4. Layar cerdas & papan tulis interaktif</p>
+            <p>5. Ruang guru & laboran (pengawasan & admin)</p>
+            <p>6. <strong>Ruang khusus keselamatan (K3 & medis)</strong></p>
+            <p>7. Meja praktikum siswa (modular heksagonal)</p>
+            <p>8. Kursi praktikum ergonomis</p>
+            <p>9. Area kolaborasi & diskusi kelompok</p>
+            <p>10. Area eksperimen / proyek riset mandiri</p>
+            <p>11. Area teknologi & simulasi virtual (PhET)</p>
+            <p>12. Area persiapan alat laboran</p>
+            <p>13. Lemari alat 1: Mekanika & Termodinamika</p>
+            <p>14. Lemari alat 2: Listrik, Magnet & Elektronika</p>
+            <p>15. Lemari alat 3: Optik, Gelombang & Bunyi</p>
+            <p>16. Lemari alat 4: Sensor, Neraca & Alat Presisi</p>
+            <p>17. Fasilitas K3: Tabung APAR & Selimut Api</p>
+            <p>18. Fasilitas K3: Tandu/Ranjang Medis & Kotak P3K</p>
+            <p>19. Fasilitas K3: Saklar Sentral Stop (Cut-Off)</p>
+            <p>20. Jendela ventilasi & pencahayaan alami</p>
+            <p>21. Area cuci & sink peralatan praktikum</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Application Logic Scripts -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
